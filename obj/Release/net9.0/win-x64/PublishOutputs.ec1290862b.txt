@@ -1,0 +1,2 @@
+D:\Telemetry\F12020TelemetryLogger\bin\Release\net9.0\win-x64\publish\F12020TelemetryLogger.pdb
+D:\Telemetry\F12020TelemetryLogger\bin\Release\net9.0\win-x64\publish\F12020TelemetryLogger.exe
