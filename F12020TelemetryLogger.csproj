@@ -5,6 +5,14 @@
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <AssemblyName>Telemetry Logger</AssemblyName>
+    <AssemblyTitle>Telemetry Logger</AssemblyTitle>
+    <Company>FZero.dev</Company>
+    <Product>Telemetry Logger</Product>
+    <Description>Reads UDP telemetry from F1 2020 and generates Excel.</Description>
+    <Version>0.5.0</Version>
+    <FileVersion>1.0.0.0</FileVersion>
+    <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

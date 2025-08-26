@@ -1,25 +1,31 @@
 {
   "format": 1,
   "restore": {
-    "D:\\Telemetry\\F12020TelemetryLogger\\F12020TelemetryLogger.csproj": {}
+    "D:\\Telemetry\\F1-2020-Telemetry-Logger\\F12020TelemetryLogger.csproj": {}
   },
   "projects": {
-    "D:\\Telemetry\\F12020TelemetryLogger\\F12020TelemetryLogger.csproj": {
-      "version": "1.0.0",
+    "D:\\Telemetry\\F1-2020-Telemetry-Logger\\F12020TelemetryLogger.csproj": {
+      "version": "0.5.0",
       "restore": {
-        "projectUniqueName": "D:\\Telemetry\\F12020TelemetryLogger\\F12020TelemetryLogger.csproj",
-        "projectName": "F12020TelemetryLogger",
-        "projectPath": "D:\\Telemetry\\F12020TelemetryLogger\\F12020TelemetryLogger.csproj",
+        "projectUniqueName": "D:\\Telemetry\\F1-2020-Telemetry-Logger\\F12020TelemetryLogger.csproj",
+        "projectName": "Telemetry Logger",
+        "projectPath": "D:\\Telemetry\\F1-2020-Telemetry-Logger\\F12020TelemetryLogger.csproj",
         "packagesPath": "C:\\Users\\nigma\\.nuget\\packages\\",
-        "outputPath": "D:\\Telemetry\\F12020TelemetryLogger\\obj\\",
+        "outputPath": "D:\\Telemetry\\F1-2020-Telemetry-Logger\\obj\\",
         "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
         "configFilePaths": [
-          "C:\\Users\\nigma\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "C:\\Users\\nigma\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
           "net9.0"
         ],
         "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {

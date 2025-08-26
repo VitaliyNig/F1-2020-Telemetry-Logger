@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "nNAOg3+2J5g=",
+  "dgSpecHash": "2zSuYzngFEM=",
   "success": true,
-  "projectFilePath": "D:\\Telemetry\\F12020TelemetryLogger\\F12020TelemetryLogger.csproj",
+  "projectFilePath": "D:\\Telemetry\\F1-2020-Telemetry-Logger\\F12020TelemetryLogger.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\nigma\\.nuget\\packages\\closedxml\\0.105.0\\closedxml.0.105.0.nupkg.sha512",
     "C:\\Users\\nigma\\.nuget\\packages\\closedxml.parser\\2.0.0\\closedxml.parser.2.0.0.nupkg.sha512",

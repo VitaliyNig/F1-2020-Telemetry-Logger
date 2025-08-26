@@ -10,13 +10,14 @@
 using System;
 using System.Reflection;
 
-[assembly: System.Reflection.AssemblyCompanyAttribute("F12020TelemetryLogger")]
+[assembly: System.Reflection.AssemblyCompanyAttribute("FZero.dev")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
+[assembly: System.Reflection.AssemblyDescriptionAttribute("Reads UDP telemetry from F1 2020 and generates Excel.")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
-[assembly: System.Reflection.AssemblyProductAttribute("F12020TelemetryLogger")]
-[assembly: System.Reflection.AssemblyTitleAttribute("F12020TelemetryLogger")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.5.0+4adf265c4207b7976b96e24a1b794cb496e3ce84")]
+[assembly: System.Reflection.AssemblyProductAttribute("Telemetry Logger")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Telemetry Logger")]
+[assembly: System.Reflection.AssemblyVersionAttribute("0.5.0.0")]
 
 // Создано классом WriteCodeFragment MSBuild.
 
