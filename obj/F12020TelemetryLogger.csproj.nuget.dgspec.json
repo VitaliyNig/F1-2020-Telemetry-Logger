@@ -5,7 +5,7 @@
   },
   "projects": {
     "D:\\Telemetry\\F1-2020-Telemetry-Logger\\F12020TelemetryLogger.csproj": {
-      "version": "0.5.0",
+      "version": "7.0.0",
       "restore": {
         "projectUniqueName": "D:\\Telemetry\\F1-2020-Telemetry-Logger\\F12020TelemetryLogger.csproj",
         "projectName": "Telemetry Logger",
@@ -57,6 +57,12 @@
             "EPPlus": {
               "target": "Package",
               "version": "[7.0.0, )"
+            },
+            "Microsoft.NET.ILLink.Tasks": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[9.0.8, )",
+              "autoReferenced": true
             }
           },
           "imports": [
@@ -70,12 +76,31 @@
           ],
           "assetTargetFallback": true,
           "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Runtime.win-x64",
+              "version": "[9.0.8, 9.0.8]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Runtime.win-x64",
+              "version": "[9.0.8, 9.0.8]"
+            },
+            {
+              "name": "Microsoft.WindowsDesktop.App.Runtime.win-x64",
+              "version": "[9.0.8, 9.0.8]"
+            }
+          ],
           "frameworkReferences": {
             "Microsoft.NETCore.App": {
               "privateAssets": "all"
             }
           },
           "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.304/PortableRuntimeIdentifierGraph.json"
+        }
+      },
+      "runtimes": {
+        "win-x64": {
+          "#import": []
         }
       }
     }

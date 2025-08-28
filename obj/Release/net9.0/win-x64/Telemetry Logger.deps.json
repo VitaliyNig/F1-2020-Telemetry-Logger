@@ -7,7 +7,7 @@
   "targets": {
     ".NETCoreApp,Version=v9.0": {},
     ".NETCoreApp,Version=v9.0/win-x64": {
-      "Telemetry Logger/0.5.0": {
+      "Telemetry Logger/7.0": {
         "dependencies": {
           "ClosedXML": "0.105.0",
           "EPPlus": "7.0.0",
@@ -956,7 +956,7 @@
     }
   },
   "libraries": {
-    "Telemetry Logger/0.5.0": {
+    "Telemetry Logger/7.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

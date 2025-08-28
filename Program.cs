@@ -62,30 +62,35 @@ namespace F12020TelemetryLogger
                 _udp.Client.Bind(new IPEndPoint(IPAddress.Any, port));
                 _udp.Client.ReceiveTimeout = 50;
                 _udp.Client.ReceiveBufferSize = 1 << 20;
-                Console.WriteLine($"[i] UDP listening on: {port} (ReuseAddress=ON)");
+                Console.WriteLine($"[i] UDP Listening Enabled: {port} (ReuseAddress=ON)");
             }
             catch (SocketException se) when (se.SocketErrorCode == SocketError.AddressAlreadyInUse || se.SocketErrorCode == SocketError.AccessDenied)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"❌ Порт {port} недоступен: {se.Message}");
+                Console.BackgroundColor = ConsoleColor.Red;
+                Console.WriteLine($"[warning] Порт {port} недоступен: {se.Message}");
                 Console.ResetColor();
 
                 var owners = FindUdpOwners(port);
                 if (owners.Count > 0)
                 {
-                    Console.WriteLine("Кто держит порт: ");
+                    Console.BackgroundColor = ConsoleColor.Red;
+                    Console.WriteLine("[warning] Порт занят процессом: ");
                     foreach (var (pid, name) in owners)
+                    {
                         Console.WriteLine($"  • {name} (PID {pid})");
+                    }
+                    Console.ResetColor();
                 }
                 else
                 {
-                    Console.WriteLine("Не удалось определить процесс, занявший порт.");
+                    Console.BackgroundColor = ConsoleColor.Red;
+                    Console.WriteLine("[warning] Не удалось определить процесс, занявший порт");
+                    Console.ResetColor();
                 }
 
-                Console.WriteLine();
-                Console.WriteLine($"→ Закройте приложение выше или запустите логгер на другом порту, например:");
-                Console.WriteLine($"   dotnet run -- {port + 1}");
-                Console.WriteLine($"   telemetry.exe {port + 1}");
+                Console.WriteLine($"\n[i] Закройте приложение выше или запустите логгер на другом порту, например:");
+                Console.WriteLine($"    dotnet run -- {port + 1}");
+                Console.WriteLine($"    telemetry.exe {port + 1}");
                 return 2;
             }
 
@@ -123,27 +128,29 @@ namespace F12020TelemetryLogger
                             ST.PendingFinalSave = false;
                             CloseOpenScWindows();
                             await SaveAllAsync(makeExcel: true);
-                            Console.WriteLine("[✓] Session finished — saved CSV/XLSX.");
+                            Console.WriteLine("[i] Session Finished — Auto-Saved (CSV + XLSX)");
                         }
 
                         if (ST.AutoSaveEnabled && DateTime.UtcNow - _lastAutoSaveUtc >= AutoSaveEvery && !_saving)
                         {
                             await SaveAllAsync(makeExcel: false);
                             _lastAutoSaveUtc = DateTime.UtcNow;
-                            Console.WriteLine("[i] Auto-saved CSV.");
+                            Console.WriteLine("[i] Auto-Saved (CSV)");
                         }
                     }
                     catch (SocketException) { }
                     catch (ObjectDisposedException) { break; }
                     catch (Exception ex)
                     {
-                        Console.WriteLine("[warn] " + ex.Message);
+                        Console.BackgroundColor = ConsoleColor.Red;
+                        Console.WriteLine("[warning] " + ex.Message);
+                        Console.ResetColor();
                     }
                 }
             }
             finally
             {
-                await FinalizeAndExitAsync("Main loop end");
+                await FinalizeAndExitAsync();
             }
 
             return 0;
@@ -170,64 +177,74 @@ namespace F12020TelemetryLogger
                     case ConsoleKey.D1:
                     case ConsoleKey.NumPad1:
                         await SaveAllAsync(makeExcel: true);
-                        Console.WriteLine("[i] Saved (manual).");
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine("[✓] Manual Saved");
+                        Console.ResetColor();
                         break;
 
                     case ConsoleKey.D2:
                     case ConsoleKey.NumPad2:
-                        PrintBuffer();
+                        ST.AutoSaveEnabled = !ST.AutoSaveEnabled;
+                        Console.WriteLine(ST.AutoSaveEnabled ? "[i] Auto-Save: ON" : "[i] Auto-Save: OFF");
                         break;
 
                     case ConsoleKey.D3:
                     case ConsoleKey.NumPad3:
-                        ST.AutoSaveEnabled = !ST.AutoSaveEnabled;
-                        Console.WriteLine(ST.AutoSaveEnabled ? "[i] Auto-save: ON" : "[i] Auto-save: OFF");
+                        TryOpenFolder();
                         break;
 
                     case ConsoleKey.D4:
                     case ConsoleKey.NumPad4:
-                        TryOpenFolder();
+                        PrintBuffer();
+                        break;
+
+                    case ConsoleKey.D5:
+                    case ConsoleKey.NumPad5:
+                        var fakeHdr = new PacketHeader(0, 0, 0, 0, 0, ST.AnchorSessionUID + 1, 0f, 0, 0, 0);
+                        ReAnchorForNewWeekend(fakeHdr, ST.TrackId);
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine("[✓] Manual Started New Weekend");
+                        Console.ResetColor();
                         break;
 
                     case ConsoleKey.D0:
                     case ConsoleKey.NumPad0:
-                        TriggerExit("Menu Exit");
+                        TriggerExit();
                         return;
-
-                    case ConsoleKey.N:
-                        var fakeHdr = new PacketHeader(0, 0, 0, 0, 0, ST.AnchorSessionUID + 1, 0f, 0, 0, 0);
-                        ReAnchorForNewWeekend(fakeHdr, ST.TrackId);
-                        Console.WriteLine("[i] Started new session (manual).");
-                        break;
                 }
             }
         }
 
         private static void PrintBanner()
         {
-            Console.WriteLine("[i] F1 2020 Telemetry Logger v5");
+            Console.BackgroundColor = ConsoleColor.DarkMagenta;
+            Console.WriteLine("    Telemetry Logger | F1 2020 | v7    ");
+            Console.ResetColor();
         }
 
         private static void PrintMenu()
         {
-            Console.WriteLine("\n    [1] Save now (+Excel)\n    [2] Buffer\n    [3] Auto-save ON/OFF\n    [4] Open folder\n    [M] Menu\n    [N] New weekend\n    [0] Exit\n");
+            Console.WriteLine("\n    [1] Manual Save (CSV + Excel)\n    [2] Auto-Save (ON/OFF)\n    [3] Open Folder\n    [4] View Buffer\n    [5] Manual Start New Weekend\n    [M] Show Menu Again\n    [0] Exit Program\n");
         }
 
         private static void PrintBuffer()
         {
             int total = ST.SessionBuffers.Sum(kv => kv.Value.Count);
-            Console.WriteLine($"[i] Buffered rows: {total}");
+            Console.WriteLine($"[i] Buffered Rows: {total}");
+
             foreach (var kv in ST.SessionBuffers.OrderBy(k => k.Key))
             {
                 var uid = kv.Key;
-                var list = kv.Value;
-                var byDrv = list.GroupBy(r => r.DriverColumn).OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase);
-                Console.WriteLine($"  Session {uid}: rows={list.Count}, drivers={byDrv.Count()}");
+                var snapshot = kv.Value.ToArray();
+                var byDrv = snapshot.GroupBy(r => r.DriverColumn, StringComparer.OrdinalIgnoreCase)
+                                    .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase);
+
+                Console.WriteLine($"    Session {uid}: Rows={snapshot.Length}, Drivers={byDrv.Count()}");
                 foreach (var g in byDrv)
                 {
                     int laps = g.Select(x => x.Lap).Distinct().Count();
                     var avg = g.Average(x => x.LapTimeMs);
-                    Console.WriteLine($"    {g.Key}  laps={laps,-3} avg={MsToStr((int)Math.Round(avg))}");
+                    Console.WriteLine($"    {g.Key}  Laps={laps,-3} Avg={MsToStr((int)Math.Round(avg))}");
                 }
             }
         }
@@ -239,34 +256,49 @@ namespace F12020TelemetryLogger
                 var folder = GetOutputDir();
                 var psi = new System.Diagnostics.ProcessStartInfo { FileName = folder, UseShellExecute = true };
                 System.Diagnostics.Process.Start(psi);
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("[✓] Opening Folder…");
+                Console.ResetColor();
             }
-            catch (Exception ex) { Console.WriteLine("[warn] open folder: " + ex.Message); }
+            catch (Exception ex)
+            {
+                Console.BackgroundColor = ConsoleColor.Red;
+                Console.WriteLine("[warning] Error Opening Folder: " + ex.Message);
+                Console.ResetColor();
+            }
         }
 
-        private static void TriggerExit(string reason)
+        private static void TriggerExit()
         {
             if (!_running) return;
             _running = false;
-            Console.WriteLine($"[i] Exiting… ({reason})");
-            _ = Task.Run(async () => await FinalizeAndExitAsync(from: reason));
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"[✓] Exiting…");
+            Console.ResetColor();
+            _ = Task.Run(async () => await FinalizeAndExitAsync());
         }
 
-        private static async Task FinalizeAndExitAsync(string from)
+        private static async Task FinalizeAndExitAsync()
         {
             try
             {
                 CloseOpenScWindows();
                 await SaveAllAsync(makeExcel: true);
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("[✓] Final Save Complete");
+                Console.ResetColor();
             }
             catch (Exception ex)
             {
-                Console.WriteLine("[warn] Final save failed: " + ex.Message);
+                Console.BackgroundColor = ConsoleColor.Red;
+                Console.WriteLine("[warning] Final Save Failed: " + ex.Message);
+                Console.ResetColor();
             }
 
             try { _udp?.Close(); _udp?.Dispose(); } catch { }
             try { _cts?.Cancel(); _cts?.Dispose(); } catch { }
 
-            Console.WriteLine("[i] Bye.");
+            Console.WriteLine("[i] Bye");
             Environment.Exit(0);
         }
 
@@ -280,7 +312,7 @@ namespace F12020TelemetryLogger
             ST.AnchorLocalDate = DateTime.Now.ToString("yyyy-MM-dd");
             if (ST.TrackId.HasValue) ST.AnchorTrackId = ST.TrackId;
             if (string.IsNullOrEmpty(ST.AnchorTrackName)) ST.AnchorTrackName = "UnknownTrack";
-            Console.WriteLine($"[i] Anchor: date={ST.AnchorLocalDate}, sessionUID={ST.AnchorSessionUID}");
+            Console.WriteLine($"[i] Anchor: Date={ST.AnchorLocalDate}, SessionUID={ST.AnchorSessionUID}");
         }
 
         private static void ParseCarTelemetry(ReadOnlySpan<byte> buf, PacketHeader hdr)
@@ -289,7 +321,7 @@ namespace F12020TelemetryLogger
             if (off + CARTELEM_STRIDE * MAX_CARS > buf.Length) return;
 
             bool isQuali = IsQualiNow();
-            bool isRace = IsRaceSession(new ParsedRow(0, hdr.SessionUID, ST.SessionType, 0, "", "", 0, "", 0, true, null, null, null, null, null));
+            bool isRace = IsRaceNow();
 
             if (!isQuali && !isRace) return;
 
@@ -400,39 +432,87 @@ namespace F12020TelemetryLogger
         private static void ParseEvent(ReadOnlySpan<byte> buf, PacketHeader hdr)
         {
             if (buf.Length < HEADER_SIZE + 4) return;
-            string code = Encoding.ASCII.GetString(buf.Slice(HEADER_SIZE, 4));
+            string code = Encoding.UTF8.GetString(buf.Slice(HEADER_SIZE, 4));
 
             switch (code)
             {
-                case "SSTA": break;
+                case "SSTA":
+                    Console.WriteLine("[EVT] Session Started");
+                    break;
+
                 case "SEND":
                     ST.PendingFinalSave = true;
                     ST.LastSessionClosed = true;
-                    Console.WriteLine("[EVT] Session ended");
+                    Console.WriteLine("[EVT] Session Ended");
                     break;
+
                 case "SCDP":
                     ST.CurrentSC = 1;
                     StartScWindow(hdr.SessionUID, "SC", hdr.SessionTime, "[Event]");
-                    Console.WriteLine("[EVT] SC deployed");
                     break;
+
                 case "SCDE":
                     ST.CurrentSC = 0;
                     EndScWindow(hdr.SessionUID, "SC", hdr.SessionTime, "[Event]");
-                    Console.WriteLine("[EVT] SC ended");
                     break;
+
                 case "VSCN":
                     ST.CurrentSC = 2;
                     StartScWindow(hdr.SessionUID, "VSC", hdr.SessionTime, "[Event]");
-                    Console.WriteLine("[EVT] VSC on");
                     break;
+
                 case "VSCF":
                     ST.CurrentSC = 3;
                     EndScWindow(hdr.SessionUID, "VSC", hdr.SessionTime, "[Event]");
-                    Console.WriteLine("[EVT] VSC finished");
                     break;
+
+                case "PENA":
+                    ParsePenaltyEvent(buf, hdr);
+                    break;
+
                 default:
                     break;
             }
+        }
+
+        private static void ParsePenaltyEvent(ReadOnlySpan<byte> buf, PacketHeader hdr)
+        {
+            // После 24-байт Header и 4-байт кода события идёт union.
+            // Для PENA структура: 7 байт: penaltyType, infringementType, vehicleIdx, otherVehicleIdx, time, lapNum, placesGained
+            int o = HEADER_SIZE + 4;
+            if (o + 7 > buf.Length) return;
+
+            byte penaltyType = buf[o + 0];
+            byte infringementType = buf[o + 1];
+            byte vehicleIdx = buf[o + 2];
+            byte otherVehicleIdx = buf[o + 3];
+            byte timeSec = buf[o + 4];
+            byte lapNum = buf[o + 5];
+            byte placesGained = buf[o + 6];
+
+            string penName = PenaltyName(penaltyType);
+            string infrName = InfringementName(infringementType);
+
+            string penaltyText = penName;
+
+            if (penaltyType == 1 /*Stop-Go*/ || penaltyType == 4 /*Time penalty*/)
+                penaltyText = $"{penName} ({timeSec}s)";
+            else if (penaltyType == 2 /*Grid penalty*/ && placesGained > 0)
+                penaltyText = $"{penName} (+{placesGained})";
+
+            var inc = new IncidentRow(
+                Lap: lapNum,
+                CarIdx: vehicleIdx,
+                Accident: infrName,
+                Penalty: penaltyText,
+                Seconds: timeSec,
+                PlacesGained: placesGained,
+                OtherCar: otherVehicleIdx,
+                SessTimeSec: hdr.SessionTime
+            );
+
+            var list = ST.Incidents.GetOrAdd(hdr.SessionUID, _ => new List<IncidentRow>());
+            list.Add(inc);
         }
 
         private static void ParseParticipants(ReadOnlySpan<byte> buf, PacketHeader hdr)
@@ -453,10 +533,12 @@ namespace F12020TelemetryLogger
                 byte raceNumber = buf[start + 3];             // не используем
                 byte nationality = buf[start + 4];             // не используем
 
-                // name[48] ASCII
                 var nameBytes = buf.Slice(start + 5, 48);
-                string name = DecodeName(nameBytes);
 
+                string raw = Encoding.UTF8.GetString(nameBytes).TrimEnd('\0');
+                DebugParticipantName(car, nameBytes, raw);
+
+                string name = DecodeName(nameBytes);
                 if (string.IsNullOrWhiteSpace(name))
                 {
                     name = (aiControlled == 1) ? "AI" : "Player";
@@ -466,24 +548,13 @@ namespace F12020TelemetryLogger
                 ST.DriverDisplay[car] = display;
                 ST.DriverRawName[car] = name;
                 ST.TeamByCar[car] = teamId;
-
-                foreach (var session in ST.SessionBuffers)
-                {
-                    var list = session.Value;
-                    for (int i = 0; i < list.Count; i++)
-                    {
-                        var r = list[i];
-                        if (r.CarIdx != car) continue;
-
-                        bool isUnknownPlaceholder = r.DriverColumn.Equals($"Unknown [{car}]", StringComparison.OrdinalIgnoreCase);
-                        bool isBarePlayerOrAI = r.DriverColumn.Equals("Player", StringComparison.OrdinalIgnoreCase)
-                                                || r.DriverColumn.Equals("AI", StringComparison.OrdinalIgnoreCase);
-
-                        if (isUnknownPlaceholder || isBarePlayerOrAI)
-                            list[i] = r with { DriverColumn = display, DriverRaw = name };
-                    }
-                }
             }
+        }
+
+        private static void DebugParticipantName(int car, ReadOnlySpan<byte> nameBytes, string decoded)
+        {
+            Console.WriteLine($"[DBG] Car {car} rawNameBytes: {BitConverter.ToString(nameBytes.ToArray())}");
+            Console.WriteLine($"[DBG] Car {car} decodedName: '{decoded}'");
         }
 
         private static void ParseCarStatus(ReadOnlySpan<byte> buf, PacketHeader hdr)
@@ -550,18 +621,14 @@ namespace F12020TelemetryLogger
 
                 double lapEndSec = hdr.SessionTime;
                 double lapStartSec = ST.LapStartSec.TryGetValue(car, out var s) ? s : Math.Max(0, lapEndSec - lastLapSec);
-
                 string scTag = GetScOverlap(hdr.SessionUID, lapStartSec, lapEndSec);
-
                 string display = ST.DriverDisplay.TryGetValue(car, out var disp) ? disp : "Unknown";
                 string rawName = ST.DriverRawName.TryGetValue(car, out var nm) ? nm : "Unknown";
                 ST.LastWear.TryGetValue(car, out var wear);
                 string tyre = ST.CurrentTyre.TryGetValue(car, out var t) ? t : "Unknown";
-
                 int tyreAge = ST.LastTyreAge.TryGetValue(car, out var a) ? a : -1;
 
                 var row = new ParsedRow(
-                    TimeStamp: DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                     SessionUID: hdr.SessionUID,
                     SessionType: ST.SessionType,
                     CarIdx: car,
@@ -570,16 +637,20 @@ namespace F12020TelemetryLogger
                     Lap: lapNo,
                     Tyre: tyre,
                     LapTimeMs: (int)Math.Round(lastLapSec * 1000.0),
-                    Valid: true,
-                    WearAvg: wear?.Avg, RL: wear?.RL, RR: wear?.RR, FL: wear?.FL, FR: wear?.FR,
+                    WearAvg: wear?.Avg,
+                    RL: wear?.RL,
+                    RR: wear?.RR,
+                    FL: wear?.FL,
+                    FR: wear?.FR,
                     SessTimeSec: hdr.SessionTime,
                     ScStatus: scTag,
                     TyreAge: tyreAge
                 );
 
-                var list = ST.SessionBuffers.GetOrAdd(hdr.SessionUID, _ => new());
-                if (!list.Any(r => r.CarIdx == car && r.Lap == lapNo && Math.Abs(r.LapTimeMs - row.LapTimeMs) <= 1))
-                    list.Add(row);
+                var q = ST.SessionBuffers.GetOrAdd(hdr.SessionUID, _ => new ConcurrentQueue<ParsedRow>());
+                q.Enqueue(row);
+
+                UpdateProvisionalAgg(hdr.SessionUID, row);
             }
         }
 
@@ -600,35 +671,39 @@ namespace F12020TelemetryLogger
                 {
                     if (newFile)
                     {
-                        await sw.WriteLineAsync("timestamp,session_uid,session_type,car_idx,driver_column,driver_raw,lap,tyre,lap_time_ms,valid,wear_avg,wear_rl,wear_rr,wear_fl,wear_fr,sess_time_sec,sc_status,tyre_age");
+                        await sw.WriteLineAsync("session_uid,session_type,car_idx,driver_column,driver_raw,lap,tyre,lap_time_ms,wear_avg,wear_rl,wear_rr,wear_fl,wear_fr,sess_time_sec,sc_status,tyre_age");
                     }
 
                     foreach (var kv in ST.SessionBuffers.ToArray())
                     {
                         var uid = kv.Key;
-                        var list = kv.Value;
-                        if (list.Count == 0) continue;
+                        var q = kv.Value;
+                        if (q.IsEmpty) continue;
 
-                        foreach (var r in list)
+                        while (q.TryDequeue(out var r))
                         {
-                            string sc = !string.IsNullOrEmpty(r.ScStatus)
-                                ? r.ScStatus!
-                                : GetScAt(uid, r.SessTimeSec);
+                            string sc = !string.IsNullOrEmpty(r.ScStatus) ? r.ScStatus! : GetScAt(uid, r.SessTimeSec);
 
                             await sw.WriteLineAsync(string.Join(",",
-                                r.TimeStamp, r.SessionUID, r.SessionType, r.CarIdx,
-                                Csv(r.DriverColumn), Csv(r.DriverRaw), r.Lap,
-                                Csv(r.Tyre), r.LapTimeMs, "1",
-                                r.WearAvg?.ToString(CultureInfo.InvariantCulture) ?? "",
-                                r.RL?.ToString() ?? "", r.RR?.ToString() ?? "", r.FL?.ToString() ?? "", r.FR?.ToString() ?? "",
+                                r.SessionUID,
+                                r.SessionType,
+                                r.CarIdx,
+                                Csv(r.DriverColumn),
+                                Csv(r.DriverRaw),
+                                r.Lap,
+                                Csv(r.Tyre),
+                                r.LapTimeMs,
+                                (r.WearAvg?.ToString(CultureInfo.InvariantCulture) ?? ""),
+                                (r.RL?.ToString(CultureInfo.InvariantCulture) ?? ""),
+                                (r.RR?.ToString(CultureInfo.InvariantCulture) ?? ""),
+                                (r.FL?.ToString(CultureInfo.InvariantCulture) ?? ""),
+                                (r.FR?.ToString(CultureInfo.InvariantCulture) ?? ""),
                                 r.SessTimeSec.ToString(CultureInfo.InvariantCulture),
                                 sc,
                                 r.TyreAge.ToString(CultureInfo.InvariantCulture)
                             ));
                             appended++;
                         }
-
-                        list.Clear();
                     }
                 }
                 if (appended > 0)
@@ -642,11 +717,13 @@ namespace F12020TelemetryLogger
                     try
                     {
                         BuildExcel(csvPath, xlsxPath);
-                        Console.WriteLine($"[✓] {Path.GetFileName(xlsxPath)} rebuilt");
+                        Console.WriteLine($"[i] File Rebuilt: {Path.GetFileName(xlsxPath)}");
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine("[warn] Excel build failed: " + ex.Message);
+                        Console.BackgroundColor = ConsoleColor.Red;
+                        Console.WriteLine("[warning] Excel Build Failed: " + ex.Message);
+                        Console.ResetColor();
                     }
 
                     ST.LastFinalSaveUtc = DateTime.UtcNow;
@@ -722,6 +799,7 @@ namespace F12020TelemetryLogger
             // Сводки
             AddAveragePaceXL(wb, rows);
             AddMaxSpeedXL(wb);
+            AddIncidentsXL(wb);
 
             // Инфо
             var info = wb.AddWorksheet("Info");
@@ -738,8 +816,7 @@ namespace F12020TelemetryLogger
 
         private static void AddLapSheetXL(XLWorkbook wb, string sheetName, IEnumerable<ParsedRow> data)
         {
-            var list = data.Where(r => r.Valid)
-                           .OrderBy(r => r.DriverColumn, StringComparer.OrdinalIgnoreCase)
+            var list = data.OrderBy(r => r.DriverColumn, StringComparer.OrdinalIgnoreCase)
                            .ThenBy(r => r.Lap)
                            .ToList();
 
@@ -752,21 +829,35 @@ namespace F12020TelemetryLogger
                 return;
             }
 
-            var drivers = list.Select(r => r.DriverColumn)
-                              .Distinct(StringComparer.OrdinalIgnoreCase)
-                              .OrderBy(s => s, StringComparer.OrdinalIgnoreCase)
-                              .ToList();
+            var drivers = list.Select(r => r.CarIdx).Distinct().ToList();
+
+            if (ST.FinalOrder.TryGetValue(list[0].SessionUID, out var order) && order.Count > 0)
+            {
+                drivers = order.Where(car => drivers.Contains(car)).ToList();
+            }
+            else
+            {
+                drivers = drivers.OrderBy(car => ST.DriverDisplay.TryGetValue(car, out var d) ? d : $"Car {car}",
+                                          StringComparer.OrdinalIgnoreCase).ToList();
+            }
+
+            // преобразуем в DriverColumn для отображения
+            var driverColumns = drivers.Select(car =>
+                ST.DriverDisplay.TryGetValue(car, out var d) ? d : $"Car {car}"
+            ).ToList();
 
             ws.Cell(1, 1).Value = "Lap";
-            for (int c = 0; c < drivers.Count; c++)
+            ws.Cell(1, 1).Style.Font.SetBold();
+
+            for (int c = 0; c < driverColumns.Count; c++)
             {
                 var headerCell = ws.Cell(1, 2 + c);
-                headerCell.Value = drivers[c];
+                headerCell.Value = driverColumns[c];
                 headerCell.Style.Font.SetBold(); // жирный шрифт для имени
 
                 // Подберём цвет по команде
                 XLColor bg = XLColor.NoColor;
-                int? carIdx = TryExtractCarIndexFromDisplay(drivers[c]);
+                int? carIdx = TryExtractCarIndexFromDisplay(driverColumns[c]);
                 if (carIdx.HasValue && ST.TeamByCar.TryGetValue(carIdx.Value, out var teamId))
                     bg = TeamColor(teamId);
 
@@ -786,9 +877,9 @@ namespace F12020TelemetryLogger
             for (int i = 0; i < maxRows; i++)
             {
                 ws.Cell(2 + i, 1).Value = i + 1;
-                for (int c = 0; c < drivers.Count; c++)
+                for (int c = 0; c < driverColumns.Count; c++)
                 {
-                    var d = drivers[c];
+                    var d = driverColumns[c];
                     if (byDriver.TryGetValue(d, out var laps) && i < laps.Count)
                     {
                         var r = laps[i];
@@ -799,11 +890,22 @@ namespace F12020TelemetryLogger
                         var cell = ws.Cell(2 + i, 2 + c);
                         cell.Value = cellText;
 
-                        // Пастельная раскраска по шинам
+                        // Заливка по типу шин
                         var color = GetTyreColor(r.Tyre);
                         if (color != XLColor.NoColor)
-                        {
                             cell.Style.Fill.BackgroundColor = color;
+
+                        // Комментарий с детализацией износа по колёсам
+                        bool hasAnyWheel = r.FL.HasValue || r.FR.HasValue || r.RL.HasValue || r.RR.HasValue;
+                        if (hasAnyWheel)
+                        {
+                            string fl = r.FL.HasValue ? $"{r.FL.Value}%" : "?";
+                            string fr = r.FR.HasValue ? $"{r.FR.Value}%" : "?";
+                            string rl = r.RL.HasValue ? $"{r.RL.Value}%" : "?";
+                            string rr = r.RR.HasValue ? $"{r.RR.Value}%" : "?";
+
+                            var comment = cell.CreateComment();
+                            comment.AddText($"{fl} - FL FR - {fr}\n{rl} - RL RR - {rr}");
                         }
                     }
                 }
@@ -813,7 +915,7 @@ namespace F12020TelemetryLogger
             ws.SheetView.Freeze(1, 1);
 
             // Условное форматирование SC/VSC
-            var used = ws.Range(2, 2, Math.Max(2, maxRows + 1), Math.Max(2, drivers.Count + 1));
+            var used = ws.Range(2, 2, Math.Max(2, maxRows + 1), Math.Max(2, driverColumns.Count + 1));
             var scRule = used.AddConditionalFormat().WhenContains("[SC]");
             scRule.Font.SetItalic();
             scRule.Font.SetFontColor(GetTyreColor("SC"));
@@ -969,6 +1071,56 @@ namespace F12020TelemetryLogger
             TrimWorksheet(ws);
         }
 
+        private static void AddIncidentsXL(XLWorkbook wb)
+        {
+            if (ST.Incidents == null || ST.Incidents.Count == 0) return;
+
+            var all = ST.Incidents
+                .OrderBy(kv => kv.Key)
+                .SelectMany(kv => kv.Value)
+                .OrderBy(x => x.Lap)
+                .ThenBy(x => x.SessTimeSec)
+                .ToList();
+
+            if (all.Count == 0) return;
+
+            var ws = wb.AddWorksheet("Incidents");
+
+            ws.Cell(1, 1).Value = "Lap";
+            ws.Cell(1, 2).Value = "Driver";
+            ws.Cell(1, 3).Value = "Incident";
+            ws.Cell(1, 4).Value = "Penalty";
+            ws.Range(1, 1, 1, 4).Style.Font.SetBold();
+
+            int r = 2;
+            foreach (var x in all)
+            {
+                string driver = (x.CarIdx >= 0 && ST.DriverDisplay.TryGetValue(x.CarIdx, out var disp))
+                                ? disp
+                                : (x.CarIdx >= 0 ? $"Car {x.CarIdx}" : "—");
+
+                ws.Cell(r, 1).Value = x.Lap > 0 ? x.Lap : 0;
+                ws.Cell(r, 2).Value = driver;
+                ws.Cell(r, 3).Value = string.IsNullOrWhiteSpace(x.Accident) ? "-" : x.Accident;
+                ws.Cell(r, 4).Value = string.IsNullOrWhiteSpace(x.Penalty) ? "-" : x.Penalty;
+
+                // Подсветка строки по категории штрафа/предупреждения
+                var cat = PenaltyCategory(x.Penalty ?? string.Empty);
+                if (cat == "Penalty")
+                    ws.Row(r).Style.Fill.BackgroundColor = XLColor.FromHtml("#FFC0C0");
+                else if (cat == "Warning")
+                    ws.Row(r).Style.Fill.BackgroundColor = XLColor.FromHtml("#FFFACD");
+                else if (cat == "Other")
+                    ws.Row(r).Style.Fill.BackgroundColor = XLColor.FromHtml("#F5F5F5");
+                r++;
+            }
+
+            ws.SheetView.Freeze(1, 1);
+            ws.Columns().AdjustToContents();
+            ws.Rows().AdjustToContents();
+            TrimWorksheet(ws);
+        }
+
         private static bool IsRaceSession(ParsedRow r)
             => r.SessionType.Equals("Race", StringComparison.OrdinalIgnoreCase)
             || r.SessionType.Equals("R2", StringComparison.OrdinalIgnoreCase)
@@ -980,17 +1132,20 @@ namespace F12020TelemetryLogger
             || r.SessionType.Equals("Q2", StringComparison.OrdinalIgnoreCase)
             || r.SessionType.Equals("Q3", StringComparison.OrdinalIgnoreCase);
 
-        // В рантайме по ST.SessionType:
         private static bool IsQualiNow()
             => ST.SessionType.Equals("ShortQ", StringComparison.OrdinalIgnoreCase)
             || ST.SessionType.Equals("Q1", StringComparison.OrdinalIgnoreCase)
             || ST.SessionType.Equals("Q2", StringComparison.OrdinalIgnoreCase)
             || ST.SessionType.Equals("Q3", StringComparison.OrdinalIgnoreCase);
 
+        private static bool IsRaceNow()
+            => ST.SessionType.Equals("Race", StringComparison.OrdinalIgnoreCase)
+            || ST.SessionType.Equals("R2", StringComparison.OrdinalIgnoreCase)
+            || ST.SessionType.Equals("R", StringComparison.OrdinalIgnoreCase);
+
         private static void AddLapSheet(ExcelPackage pkg, string sheetName, IEnumerable<ParsedRow> data)
         {
-            var list = data.Where(r => r.Valid)
-                           .OrderBy(r => r.DriverColumn, StringComparer.OrdinalIgnoreCase)
+            var list = data.OrderBy(r => r.DriverColumn, StringComparer.OrdinalIgnoreCase)
                            .ThenBy(r => r.Lap)
                            .ToList();
 
@@ -1027,7 +1182,6 @@ namespace F12020TelemetryLogger
                     {
                         var r = laps[i];
                         string cell = $"{MsToStr(r.LapTimeMs)} ({r.Tyre})"
-                                      + (r.WearAvg.HasValue ? $" — {Math.Round(r.WearAvg.Value)}%" : "")
                                       + (string.IsNullOrEmpty(r.ScStatus) ? "" : $" [{r.ScStatus}]");
                         ws.Cells[2 + i, 2 + c].Value = cell;
                     }
@@ -1113,10 +1267,95 @@ namespace F12020TelemetryLogger
 
         // ========== Helpers ==========
 
+        private static void UpdateProvisionalAgg(ulong uid, ParsedRow r)
+        {
+            var byCar = ST.Agg.GetOrAdd(uid, _ => new ConcurrentDictionary<int, State.DriverAgg>());
+            var agg = byCar.GetOrAdd(r.CarIdx, _ => new State.DriverAgg());
+
+            // обновляем агрегаты
+            if (r.Lap > agg.Laps) agg.Laps = r.Lap;
+            agg.TotalMs += r.LapTimeMs;
+            if (r.LapTimeMs > 0 && r.LapTimeMs < agg.BestMs) agg.BestMs = r.LapTimeMs;
+
+            // пересчёт порядка
+            List<int> order;
+            if (IsRaceSession(r))
+            {
+                order = byCar
+                    .Select(kv => new { Car = kv.Key, A = kv.Value })
+                    .OrderByDescending(x => x.A.Laps)
+                    .ThenBy(x => x.A.TotalMs)
+                    .Select(x => x.Car)
+                    .ToList();
+            }
+            else if (IsQualiSession(r))
+            {
+                order = byCar
+                    .Select(kv => new { Car = kv.Key, A = kv.Value })
+                    .OrderBy(x => x.A.BestMs == int.MaxValue ? int.MaxValue : x.A.BestMs)
+                    .Select(x => x.Car)
+                    .ToList();
+            }
+            else return;
+
+            ST.FinalOrder[uid] = order;
+        }
+
+        private static string SecToLapStr(float sec)
+        {
+            if (!(sec > 0)) return "";
+            int ms = (int)Math.Round(sec * 1000.0);
+            return MsToStr(ms);
+        }
+
+        private static readonly HashSet<string> _penaltyHeads = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "Drive-through", "Stop-Go", "Grid penalty", "Time penalty",
+            "Disqualified", "Removed from formation lap", "Parked too long timer",
+            "Retired", "Black flag timer"
+        };
+
+        private static readonly HashSet<string> _warningHeads = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "Penalty reminder", "Warning", "Tyre regulations",
+            "Lap invalidated", "This & next lap invalid",
+            "Lap invalid no reason", "This & next invalid no reason",
+            "This & prev lap invalid", "This & prev invalid no reason"
+        };
+
+        private static string PenaltyCategory(string penalty)
+        {
+            if (string.IsNullOrWhiteSpace(penalty)) return "Other";
+
+            foreach (var head in _penaltyHeads)
+                if (penalty.StartsWith(head, StringComparison.OrdinalIgnoreCase))
+                    return "Penalty";
+
+            foreach (var head in _warningHeads)
+                if (penalty.StartsWith(head, StringComparison.OrdinalIgnoreCase))
+                    return "Warning";
+
+            return "Other";
+        }
+
+        private static int GuessLapForCar(ulong uid, int carIdx, double sessTime)
+        {
+            if (ST.SessionBuffers.TryGetValue(uid, out var rows))
+            {
+                var q = rows.Where(r => (carIdx < 0 || r.CarIdx == carIdx) && r.SessTimeSec <= sessTime)
+                            .OrderByDescending(r => r.SessTimeSec)
+                            .FirstOrDefault();
+                if (q != null) return Math.Max(1, q.Lap);
+            }
+            // запасной вариант — берём «текущий» из live-кеша
+            if (carIdx >= 0 && ST.LastLapNum.TryGetValue(carIdx, out var lapNow))
+                return Math.Max(1, lapNow);
+            return 1;
+        }
+
         private static bool IsValidLap(ParsedRow r)
         {
             if (r == null) return false;
-            if (!r.Valid) return false;
             if (r.LapTimeMs <= 0) return false;
 
             // Пересечение интервала круга с окнами SC/VSC (с небольшим эпсилоном)
@@ -1238,10 +1477,13 @@ namespace F12020TelemetryLogger
             ST.MaxSpeedQuali.Clear();
             ST.MaxSpeedRace.Clear();
             ST.LastTyreAge.Clear();
+            ST.Incidents.Clear();
+            ST.Agg.Clear();
+            ST.FinalOrder.Clear();
 
             ST.LastSessionClosed = false;
 
-            Console.WriteLine($"[i] New weekend anchor: date={ST.AnchorLocalDate}, track={ST.AnchorTrackName}, sessionUID={ST.AnchorSessionUID}");
+            Console.WriteLine($"[i] New Weekend Anchor: Date={ST.AnchorLocalDate}, Track={ST.AnchorTrackName}, SessionUID={ST.AnchorSessionUID}");
         }
 
         private static XLColor GetTyreColor(string tyreCompound)
@@ -1278,7 +1520,7 @@ namespace F12020TelemetryLogger
                 10 => XLColor.FromHtml("#9BB8CC"), // Toro Rosso
                 11 => XLColor.FromHtml("#F9CFE2"), // Racing Point
                 12 => XLColor.FromHtml("#D9EDFC"), // Williams
-                _ => XLColor.FromHtml("#F0F0F0")  // Unknown / F2 / др.
+                _ => XLColor.FromHtml("#F5F5F5")  // Unknown / F2 / др.
             };
         }
 
@@ -1319,28 +1561,25 @@ namespace F12020TelemetryLogger
                     var parts = SplitCsv(line);
                     if (parts.Length < 16) { sw.WriteLine(line); continue; }
 
-                    if (int.TryParse(parts[3], out int carIdx) && map.TryGetValue(carIdx, out var display))
+                    if (int.TryParse(parts[2], out int carIdx) && map.TryGetValue(carIdx, out var display))
                     {
-                        // проверяем ровно Unknown [id], который мы сами писали раньше
-                        var drvCol = parts[4].Trim('"');
+                        var drvCol = parts[3].Trim('"'); // driver_column
                         if (drvCol.Equals($"Unknown [{carIdx}]", StringComparison.OrdinalIgnoreCase))
                         {
-                            parts[4] = Csv(display);
+                            parts[3] = Csv(display);
 
-                            // обновим driver_raw, если там Unknown или пусто
-                            var raw = parts[5].Trim('"');
+                            var raw = parts[4].Trim('"'); // driver_raw
                             if (string.IsNullOrWhiteSpace(raw) || raw.Equals("Unknown", StringComparison.OrdinalIgnoreCase))
                             {
-                                var p = display.LastIndexOf('[');
-                                var rawName = p > 0 ? display.Substring(0, p).Trim() : display;
-                                parts[5] = Csv(rawName);
+                                var p2 = display.LastIndexOf('[');
+                                var rawName = p2 > 0 ? display.Substring(0, p2).Trim() : display;
+                                parts[4] = Csv(rawName);
                             }
 
                             sw.WriteLine(string.Join(",", parts));
                             continue;
                         }
                     }
-
                     sw.WriteLine(line);
                 }
 
@@ -1351,7 +1590,9 @@ namespace F12020TelemetryLogger
             }
             catch (Exception ex)
             {
-                Console.WriteLine("[warn] FixCsvDriverNames: " + ex.Message);
+                Console.BackgroundColor = ConsoleColor.Red;
+                Console.WriteLine("[warning] FixCsvDriverNames: " + ex.Message);
+                Console.ResetColor();
             }
         }
 
@@ -1373,18 +1614,18 @@ namespace F12020TelemetryLogger
                 while ((line = sr.ReadLine()) != null)
                 {
                     var parts = SplitCsv(line);
+
                     if (parts.Length < 16) { sw.WriteLine(line); continue; }
+                    if (!int.TryParse(parts[2], out int carIdx)) { sw.WriteLine(line); continue; }
 
-                    if (!int.TryParse(parts[3], out int carIdx)) { sw.WriteLine(line); continue; }
-
-                    string drvCol = parts[4].Trim('"');
-                    string raw = parts[5].Trim('"');
+                    string drvCol = parts[3].Trim('"');
+                    string raw = parts[4].Trim('"');
 
                     bool isBarePlayerOrAi =
                         drvCol.Equals("Player", StringComparison.OrdinalIgnoreCase) ||
                         drvCol.Equals("AI", StringComparison.OrdinalIgnoreCase);
 
-                    bool hasIndex = drvCol.EndsWith($"]") && drvCol.Contains('[');
+                    bool hasIndex = drvCol.EndsWith("]") && drvCol.Contains('[');
 
                     if (isBarePlayerOrAi && !hasIndex)
                     {
@@ -1392,13 +1633,13 @@ namespace F12020TelemetryLogger
                                          ? disp
                                          : $"{drvCol} [{carIdx}]";
 
-                        parts[4] = Csv(display);
+                        parts[3] = Csv(display);  // ВАЖНО: driver_column — это индекс 3
 
                         if (string.IsNullOrWhiteSpace(raw))
                         {
-                            var p = display.LastIndexOf('[');
-                            var rawName = p > 0 ? display.Substring(0, p).Trim() : display;
-                            parts[5] = Csv(rawName);
+                            var p2 = display.LastIndexOf('[');
+                            var rawName = p2 > 0 ? display.Substring(0, p2).Trim() : display;
+                            parts[4] = Csv(rawName);
                         }
 
                         sw.WriteLine(string.Join(",", parts));
@@ -1415,7 +1656,9 @@ namespace F12020TelemetryLogger
             }
             catch (Exception ex)
             {
-                Console.WriteLine("[warn] FixCsvBarePlayerAi: " + ex.Message);
+                Console.BackgroundColor = ConsoleColor.Red;
+                Console.WriteLine("[warning] FixCsvBarePlayerAi: " + ex.Message);
+                Console.ResetColor();
             }
         }
 
@@ -1558,58 +1801,27 @@ namespace F12020TelemetryLogger
         private static ParsedRow? ParseCsvRow(string line)
         {
             var p = SplitCsv(line);
+            if (p == null || p.Length != 16)
+                return null;
 
-            // новый формат: ровно 18 колонок (0..17)
-            if (p.Length >= 18)
-            {
-                return new ParsedRow(
-                    TimeStamp: long.Parse(p[0]),
-                    SessionUID: ulong.Parse(p[1]),
-                    SessionType: p[2],
-                    CarIdx: int.Parse(p[3]),
-                    DriverColumn: p[4],
-                    DriverRaw: p[5],
-                    Lap: int.Parse(p[6]),
-                    Tyre: p[7],
-                    LapTimeMs: int.Parse(p[8]),
-                    Valid: p[9] == "1" || p[9].Equals("true", StringComparison.OrdinalIgnoreCase),
-                    WearAvg: TryDouble(p[10]),
-                    RL: TryInt(p[11]),
-                    RR: TryInt(p[12]),
-                    FL: TryInt(p[13]),
-                    FR: TryInt(p[14]),
-                    SessTimeSec: TryDouble(p[15]) ?? 0.0,
-                    ScStatus: p[16],
-                    TyreAge: TryInt(p[17]) ?? -1
-                );
-            }
-
-            // обратная совместимость: старый формат (16 колонок, без sess_time_sec и tyre_age)
-            if (p.Length >= 16)
-            {
-                return new ParsedRow(
-                    TimeStamp: long.Parse(p[0]),
-                    SessionUID: ulong.Parse(p[1]),
-                    SessionType: p[2],
-                    CarIdx: int.Parse(p[3]),
-                    DriverColumn: p[4],
-                    DriverRaw: p[5],
-                    Lap: int.Parse(p[6]),
-                    Tyre: p[7],
-                    LapTimeMs: int.Parse(p[8]),
-                    Valid: p[9] == "1" || p[9].Equals("true", StringComparison.OrdinalIgnoreCase),
-                    WearAvg: TryDouble(p[10]),
-                    RL: TryInt(p[11]),
-                    RR: TryInt(p[12]),
-                    FL: TryInt(p[13]),
-                    FR: TryInt(p[14]),
-                    SessTimeSec: 0.0,          // не было в старом
-                    ScStatus: p[15],
-                    TyreAge: -1            // не было в старом
-                );
-            }
-
-            return null;
+            return new ParsedRow(
+                SessionUID: ulong.Parse(p[0]),
+                SessionType: p[1],
+                CarIdx: int.Parse(p[2]),
+                DriverColumn: p[3],
+                DriverRaw: p[4],
+                Lap: int.Parse(p[5]),
+                Tyre: p[6],
+                LapTimeMs: int.Parse(p[7]),
+                WearAvg: string.IsNullOrWhiteSpace(p[8]) ? (double?)null : double.Parse(p[8], CultureInfo.InvariantCulture),
+                RL: string.IsNullOrWhiteSpace(p[9]) ? (int?)null : int.Parse(p[9], CultureInfo.InvariantCulture),
+                RR: string.IsNullOrWhiteSpace(p[10]) ? (int?)null : int.Parse(p[10], CultureInfo.InvariantCulture),
+                FL: string.IsNullOrWhiteSpace(p[11]) ? (int?)null : int.Parse(p[11], CultureInfo.InvariantCulture),
+                FR: string.IsNullOrWhiteSpace(p[12]) ? (int?)null : int.Parse(p[12], CultureInfo.InvariantCulture),
+                SessTimeSec: double.TryParse(p[13], NumberStyles.Any, CultureInfo.InvariantCulture, out var st) ? st : 0.0,
+                ScStatus: p[14],
+                TyreAge: int.TryParse(p[15], out var age) ? age : -1
+            );
         }
 
         private static string[] SplitCsv(string line)
@@ -1720,7 +1932,7 @@ namespace F12020TelemetryLogger
             public byte? TrackId { get; set; } = null;
 
             // buffers
-            public ConcurrentDictionary<ulong, List<ParsedRow>> SessionBuffers { get; } = new();
+            public ConcurrentDictionary<ulong, ConcurrentQueue<ParsedRow>> SessionBuffers { get; } = new();
             public ConcurrentDictionary<ulong, List<ScWindow>> ScWindows { get; } = new();
 
             // per-car live
@@ -1737,6 +1949,19 @@ namespace F12020TelemetryLogger
 
             public Dictionary<int, int> MaxSpeedQuali { get; } = new();
             public Dictionary<int, int> MaxSpeedRace { get; } = new();
+
+            public Dictionary<ulong, List<int>> FinalOrder { get; } = new();
+
+            public ConcurrentDictionary<ulong, List<IncidentRow>> Incidents { get; } = new();
+
+            public sealed class DriverAgg
+            {
+                public int Laps;       // макс круг
+                public long TotalMs;   // сумма ms
+                public int BestMs = int.MaxValue; // лучшее
+            }
+
+            public ConcurrentDictionary<ulong, ConcurrentDictionary<int, DriverAgg>> Agg { get; } = new();
 
             // control
             public bool AutoSaveEnabled { get; set; } = true;
@@ -1764,8 +1989,7 @@ namespace F12020TelemetryLogger
             public double Avg => Math.Round((RL + RR + FL + FR) / 4.0, 1);
         }
 
-        private sealed record ParsedRow(
-            long TimeStamp,
+        public record ParsedRow(
             ulong SessionUID,
             string SessionType,
             int CarIdx,
@@ -1774,15 +1998,25 @@ namespace F12020TelemetryLogger
             int Lap,
             string Tyre,
             int LapTimeMs,
-            bool Valid,
             double? WearAvg,
             int? RL,
             int? RR,
             int? FL,
             int? FR,
-            double SessTimeSec = 0.0,
-            string ScStatus = "",
-            int TyreAge = -1
+            double SessTimeSec,
+            string? ScStatus,
+            int TyreAge
+        );
+
+        private sealed record IncidentRow(
+            int Lap,
+            int CarIdx,
+            string Accident,
+            string Penalty,
+            int Seconds,
+            int PlacesGained,
+            int OtherCar,
+            double SessTimeSec
         );
 
         private sealed record ScWindow(string Kind, double StartSec, double? EndSec);
@@ -1816,6 +2050,86 @@ namespace F12020TelemetryLogger
             { 24, "SuzukaShort" },
             { 25, "Hanoi" },
             { 26, "Zandvoort" }
+        };
+
+        private static string PenaltyName(byte id) => id switch
+        {
+            0 => "Drive through",
+            1 => "Stop Go",
+            2 => "Grid penalty",
+            3 => "Penalty reminder",
+            4 => "Time penalty",
+            5 => "Warning",
+            6 => "Disqualified",
+            7 => "Removed from formation lap",
+            8 => "Parked too long timer",
+            9 => "Tyre regulations",
+            10 => "This lap invalidated",
+            11 => "This and next lap invalidated",
+            12 => "This lap invalidated without reason",
+            13 => "This and next lap invalidated without reason",
+            14 => "This and previous lap invalidated",
+            15 => "This and previous lap invalidated without reason",
+            16 => "Retired",
+            17 => "Black flag timer",
+            _ => $"Unknown({id})"
+        };
+
+        private static string InfringementName(byte id) => id switch
+        {
+            0 => "Blocking by slow driving",
+            1 => "Blocking by wrong way driving",
+            2 => "Reversing off the start line",
+            3 => "Big Collision",
+            4 => "Small Collision",
+            5 => "Collision failed to hand back position single",
+            6 => "Collision failed to hand back position multiple",
+            7 => "Corner cutting gained time",
+            8 => "Corner cutting overtake single",
+            9 => "Corner cutting overtake multiple",
+            10 => "Crossed pit exit lane",
+            11 => "Ignoring blue flags",
+            12 => "Ignoring yellow flags",
+            13 => "Ignoring drive through",
+            14 => "Too many drive throughs",
+            15 => "Drive through reminder serve within n laps",
+            16 => "Drive through reminder serve this lap",
+            17 => "Pit lane speeding",
+            18 => "Parked for too long",
+            19 => "Ignoring tyre regulations",
+            20 => "Too many penalties",
+            21 => "Multiple warnings",
+            22 => "Approaching disqualification",
+            23 => "Tyre regulations select single",
+            24 => "Tyre regulations select multiple",
+            25 => "Lap invalidated corner cutting",
+            26 => "Lap invalidated running wide",
+            27 => "Corner cutting ran wide gained time minor",
+            28 => "Corner cutting ran wide gained time significant",
+            29 => "Corner cutting ran wide gained time extreme",
+            30 => "Lap invalidated wall riding",
+            31 => "Lap invalidated flashback used",
+            32 => "Lap invalidated reset to track",
+            33 => "Blocking the pitlane",
+            34 => "Jump start",
+            35 => "Safety car to car collision",
+            36 => "Safety car illegal overtake",
+            37 => "Safety car exceeding allowed pace",
+            38 => "Virtual safety car exceeding allowed pace",
+            39 => "Formation lap below allowed speed",
+            40 => "Retired mechanical failure",
+            41 => "Retired terminally damaged",
+            42 => "Safety car falling too far back",
+            43 => "Black flag timer",
+            44 => "Unserved stop go penalty",
+            45 => "Unserved drive through penalty",
+            46 => "Engine component change",
+            47 => "Gearbox change",
+            48 => "League grid penalty",
+            49 => "Retry penalty",
+            50 => "Illegal time gain",
+            51 => "Mandatory pitstop",
+            _ => $"Unknown({id})"
         };
     }
 }
