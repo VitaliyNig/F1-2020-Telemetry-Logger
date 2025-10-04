@@ -17,7 +17,7 @@ namespace F12020TelemetryLogger
     {
         private static readonly AppState ST = new();
         private static volatile bool _running = true;
-        private static volatile bool _saving = false;
+        private static bool _saving = false;  // Убрали volatile
         private static DateTime _lastAutoSaveUtc = DateTime.UtcNow;
         private static readonly TimeSpan AutoSaveEvery = TimeSpan.FromSeconds(10);
 
@@ -159,13 +159,16 @@ namespace F12020TelemetryLogger
             {
                 _saving = true;
                 ScWindowService.CloseOpenWindows(ST);
-                await SaveService.SaveAllAsync(ST, makeExcel, ref _saving);
+                await SaveService.SaveAllAsync(ST, makeExcel);
                 if (makeExcel)
                     Log.Success("[✓] Manual Save Complete");
             }
             catch (Exception ex)
             {
                 Log.Warn("[warning] Save Failed: " + ex.Message);
+            }
+            finally
+            {
                 _saving = false;
             }
         }
@@ -175,7 +178,7 @@ namespace F12020TelemetryLogger
             try
             {
                 ScWindowService.CloseOpenWindows(ST);
-                await SaveService.SaveAllAsync(ST, makeExcel: true, ref _saving);
+                await SaveService.SaveAllAsync(ST, makeExcel: true);
                 Log.Success("[✓] Final Save Complete");
             }
             catch (Exception ex)

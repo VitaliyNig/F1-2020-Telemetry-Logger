@@ -14,7 +14,7 @@ namespace F12020TelemetryLogger.Services
     {
         private static readonly object SaveLock = new();
 
-        public static async Task SaveAllAsync(AppState state, bool makeExcel, ref bool saving)
+        public static async Task SaveAllAsync(AppState state, bool makeExcel)
         {
             if (!Monitor.TryEnter(SaveLock, 0))
             {
@@ -24,7 +24,6 @@ namespace F12020TelemetryLogger.Services
 
             try
             {
-                saving = true;
                 var (csvPath, xlsxPath) = GetStagePaths(state);
                 Directory.CreateDirectory(Path.GetDirectoryName(csvPath)!);
 
@@ -105,7 +104,6 @@ namespace F12020TelemetryLogger.Services
             }
             finally
             {
-                saving = false;
                 Monitor.Exit(SaveLock);
             }
         }
