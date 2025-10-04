@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyDescriptionAttribute("Reads UDP telemetry from F1 2020 and generates Excel.")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("7.0+e08be7cf51ac40f164d0b4ec4e75e2a6891d4671")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("7.0+deb58c9528cfdf1baffc6cc0a7dff62904968fc6")]
 [assembly: System.Reflection.AssemblyProductAttribute("Telemetry Logger")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Telemetry Logger")]
 [assembly: System.Reflection.AssemblyVersionAttribute("7.0.0.0")]
