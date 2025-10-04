@@ -1,0 +1,2 @@
+D:\Telemetry\F1-2020-Telemetry-Logger\release\Telemetry Logger.pdb
+D:\Telemetry\F1-2020-Telemetry-Logger\release\Telemetry Logger.exe
