@@ -16,9 +16,9 @@ namespace F12020TelemetryLogger.Menu
             Console.WriteLine("\n    [1] Manual Save (CSV + Excel)\n    [2] Auto-Save (ON/OFF)\n    [3] Open Folder\n    [4] View Buffer\n    [5] Manual Start New Weekend\n    [6] Debug Mode (ON/OFF)\n    [M] Show Menu Again\n    [0] Exit Program\n");
         }
 
-        public static async Task RunMenuLoop(AppState state, ref bool running, Func<bool, Task> saveCallback)
+        public static async Task RunMenuLoop(AppState state, Func<bool> getRunning, Action<bool> setRunning, Func<bool, Task> saveCallback)
         {
-            while (running)
+            while (getRunning())
             {
                 if (!Console.KeyAvailable)
                 {
@@ -27,7 +27,7 @@ namespace F12020TelemetryLogger.Menu
                 }
 
                 var key = Console.ReadKey(true).Key;
-                
+
                 switch (key)
                 {
                     case ConsoleKey.M:
@@ -74,7 +74,7 @@ namespace F12020TelemetryLogger.Menu
 
                     case ConsoleKey.D0:
                     case ConsoleKey.NumPad0:
-                        running = false;
+                        setRunning(false);
                         Log.Success("[✓] Exiting…");
                         return;
                 }
@@ -108,10 +108,10 @@ namespace F12020TelemetryLogger.Menu
             try
             {
                 var folder = SaveService.GetOutputDir(state);
-                var psi = new System.Diagnostics.ProcessStartInfo 
-                { 
-                    FileName = folder, 
-                    UseShellExecute = true 
+                var psi = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = folder,
+                    UseShellExecute = true
                 };
                 System.Diagnostics.Process.Start(psi);
                 Log.Success("[✓] Opening Folder…");

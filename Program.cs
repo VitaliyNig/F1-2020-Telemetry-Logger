@@ -45,12 +45,12 @@ namespace F12020TelemetryLogger
                 _udp.Client.ReceiveBufferSize = 1 << 20;
                 Log.Info($"[i] UDP Listening Enabled: {port} (ReuseAddress=ON)");
             }
-            catch (SocketException se) when (se.SocketErrorCode == SocketError.AddressAlreadyInUse || 
+            catch (SocketException se) when (se.SocketErrorCode == SocketError.AddressAlreadyInUse ||
                                              se.SocketErrorCode == SocketError.AccessDenied)
             {
                 Log.Warn($"[warning] Порт {port} недоступен: {se.Message}");
                 var owners = NetworkHelpers.FindUdpOwners(port);
-                
+
                 if (owners.Count > 0)
                 {
                     Log.Warn("[warning] Порт занят процессом: ");
@@ -80,37 +80,37 @@ namespace F12020TelemetryLogger
                         if (buf.Length < Constants.HEADER_SIZE) continue;
 
                         var hdr = PacketHeader.Parse(buf);
-                        if (hdr.PacketId < ST.PidCounters.Length) 
+                        if (hdr.PacketId < ST.PidCounters.Length)
                             ST.PidCounters[hdr.PacketId]++;
 
                         InitializeAnchors(hdr);
 
                         switch (hdr.PacketId)
                         {
-                            case 1: 
-                                SessionParser.Parse(buf, hdr, ST); 
+                            case 1:
+                                SessionParser.Parse(buf, hdr, ST);
                                 break;
-                            case 2: 
-                                if (ST.DebugPackets) 
+                            case 2:
+                                if (ST.DebugPackets)
                                     Console.WriteLine("[DBG] Packet ID=2 (LapData) received");
-                                LapDataParser.Parse(buf, hdr, ST); 
+                                LapDataParser.Parse(buf, hdr, ST);
                                 break;
-                            case 3: 
-                                EventParser.Parse(buf, hdr, ST, TriggerSave); 
+                            case 3:
+                                EventParser.Parse(buf, hdr, ST, TriggerSave);
                                 break;
-                            case 4: 
-                                ParticipantsParser.Parse(buf, hdr, ST); 
+                            case 4:
+                                ParticipantsParser.Parse(buf, hdr, ST);
                                 break;
-                            case 6: 
-                                CarTelemetryParser.Parse(buf, hdr, ST); 
+                            case 6:
+                                CarTelemetryParser.Parse(buf, hdr, ST);
                                 break;
-                            case 7: 
-                                CarStatusParser.Parse(buf, hdr, ST); 
+                            case 7:
+                                CarStatusParser.Parse(buf, hdr, ST);
                                 break;
                         }
 
-                        if (ST.AutoSaveEnabled && 
-                            DateTime.UtcNow - _lastAutoSaveUtc >= AutoSaveEvery && 
+                        if (ST.AutoSaveEnabled &&
+                            DateTime.UtcNow - _lastAutoSaveUtc >= AutoSaveEvery &&
                             !_saving)
                         {
                             await TriggerSave(makeExcel: false);
@@ -154,21 +154,18 @@ namespace F12020TelemetryLogger
         private static async Task TriggerSave(bool makeExcel)
         {
             if (_saving) return;
-            
+
             try
             {
                 _saving = true;
                 ScWindowService.CloseOpenWindows(ST);
-                await SaveService.SaveAllAsync(ST, makeExcel);
+                await SaveService.SaveAllAsync(ST, makeExcel, ref _saving);
                 if (makeExcel)
                     Log.Success("[✓] Manual Save Complete");
             }
             catch (Exception ex)
             {
                 Log.Warn("[warning] Save Failed: " + ex.Message);
-            }
-            finally
-            {
                 _saving = false;
             }
         }
@@ -178,7 +175,7 @@ namespace F12020TelemetryLogger
             try
             {
                 ScWindowService.CloseOpenWindows(ST);
-                await SaveService.SaveAllAsync(ST, makeExcel: true);
+                await SaveService.SaveAllAsync(ST, makeExcel: true, ref _saving);
                 Log.Success("[✓] Final Save Complete");
             }
             catch (Exception ex)

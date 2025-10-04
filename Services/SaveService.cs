@@ -30,7 +30,7 @@ namespace F12020TelemetryLogger.Services
 
                 int appended = 0;
                 bool newFile = !File.Exists(csvPath);
-                
+
                 using (var fs = new FileStream(csvPath, FileMode.Append, FileAccess.Write, FileShare.Read))
                 using (var sw = new StreamWriter(fs, Encoding.UTF8))
                 {
@@ -47,8 +47,8 @@ namespace F12020TelemetryLogger.Services
 
                         while (q.TryDequeue(out var r))
                         {
-                            string sc = !string.IsNullOrEmpty(r.ScStatus) 
-                                ? r.ScStatus! 
+                            string sc = !string.IsNullOrEmpty(r.ScStatus)
+                                ? r.ScStatus!
                                 : ScWindowService.GetScAt(state, uid, r.SessTimeSec);
 
                             await sw.WriteLineAsync(string.Join(",",
@@ -76,7 +76,7 @@ namespace F12020TelemetryLogger.Services
                         }
                     }
                 }
-                
+
                 if (appended > 0)
                     Console.WriteLine($"[+] {Path.GetFileName(csvPath)} +{appended}");
 
@@ -98,6 +98,11 @@ namespace F12020TelemetryLogger.Services
                     state.LastFinalSaveUtc = DateTime.UtcNow;
                 }
             }
+            catch (Exception ex)
+            {
+                Log.Warn($"[warning] Error during save: {ex.Message}");
+                throw;
+            }
             finally
             {
                 saving = false;
@@ -108,11 +113,11 @@ namespace F12020TelemetryLogger.Services
         public static (string csvPath, string xlsxPath) GetStagePaths(AppState state)
         {
             string outDir = GetOutputDir(state);
-            string track = string.IsNullOrWhiteSpace(state.AnchorTrackName) 
-                ? "UnknownTrack" 
+            string track = string.IsNullOrWhiteSpace(state.AnchorTrackName)
+                ? "UnknownTrack"
                 : Helpers.SafeName(state.AnchorTrackName);
-            string uid = (state.AnchorSessionUID != 0) 
-                ? state.AnchorSessionUID.ToString() 
+            string uid = (state.AnchorSessionUID != 0)
+                ? state.AnchorSessionUID.ToString()
                 : "session";
 
             string baseName = $"log_f1_2020_{track}_{uid}";
