@@ -17,7 +17,7 @@ namespace F12020TelemetryLogger
     {
         private static readonly AppState ST = new();
         private static volatile bool _running = true;
-        private static bool _saving = false;  // Убрали volatile
+        private static bool _saving = false;
         private static DateTime _lastAutoSaveUtc = DateTime.UtcNow;
         private static readonly TimeSpan AutoSaveEvery = TimeSpan.FromSeconds(10);
 
@@ -67,7 +67,7 @@ namespace F12020TelemetryLogger
             }
 
             _cts = new CancellationTokenSource();
-            var menuTask = Task.Run(() => MenuHandler.RunMenuLoop(ST, () => _running, (v) => _running = v, TriggerSave), _cts.Token);
+            var menuTask = Task.Run(() => MenuHandler.RunMenuLoop(ST, () => _running, (v) => _running = v, TriggerSave, _udp), _cts.Token);
 
             try
             {
@@ -175,22 +175,36 @@ namespace F12020TelemetryLogger
 
         private static async Task FinalizeAndExit()
         {
+            Log.Info("[i] Shutting down...");
+
+            try { _cts?.Cancel(); } catch { }
+            try { _udp?.Close(); } catch { }
+            try { _udp?.Dispose(); } catch { }
+
+            await Task.Delay(100);
+
             try
             {
                 ScWindowService.CloseOpenWindows(ST);
-                await SaveService.SaveAllAsync(ST, makeExcel: true);
-                Log.Success("[✓] Final Save Complete");
+                
+                var saveTask = SaveService.SaveAllAsync(ST, makeExcel: true);
+                if (await Task.WhenAny(saveTask, Task.Delay(5000)) == saveTask)
+                {
+                    await saveTask;
+                    Log.Success("[✓] Final Save Complete");
+                }
+                else
+                {
+                    Log.Warn("[warning] Final save timed out after 5 seconds");
+                }
             }
             catch (Exception ex)
             {
                 Log.Warn("[warning] Final Save Failed: " + ex.Message);
             }
 
-            try { _udp?.Close(); _udp?.Dispose(); } catch { }
-            try { _cts?.Cancel(); _cts?.Dispose(); } catch { }
-
             Log.Info("[i] Bye");
-            Environment.Exit(0);
+            await Task.Delay(500);
         }
 
         private static void PrintBanner()

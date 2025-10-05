@@ -28,12 +28,16 @@ namespace F12020TelemetryLogger.Excel
 
             ws.Cell(r, 1).Value = "Qualifying";
             ws.Range(r, 1, r, 3).Merge().Style.Font.SetBold();
+            ws.Cell(r, 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#9B3FF5");
+            ws.Cell(r, 1).Style.Font.SetFontColor(XLColor.White);
+            ws.Cell(r, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
             r++;
 
             ws.Cell(r, 1).Value = "Driver";
             ws.Cell(r, 2).Value = "Tyre";
             ws.Cell(r, 3).Value = "Avg Time";
             ws.Range(r, 1, r, 3).Style.Font.SetBold();
+            ws.Range(r, 1, r, 3).Style.Fill.BackgroundColor = XLColor.FromHtml("#E0E0E0");
             r++;
 
             var qualiAvg = qualiClean
@@ -42,7 +46,8 @@ namespace F12020TelemetryLogger.Excel
                     g.Key.DriverColumn, 
                     g.Key.Tyre, 
                     AvgMs = g.Average(x => x.LapTimeMs), 
-                    N = g.Count() 
+                    N = g.Count(),
+                    CarIdx = g.First().CarIdx
                 })
                 .OrderBy(x => x.DriverColumn, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(x => Helpers.TyreOrder(x.Tyre))
@@ -50,7 +55,12 @@ namespace F12020TelemetryLogger.Excel
 
             foreach (var x in qualiAvg)
             {
-                ws.Cell(r, 1).Value = x.DriverColumn;
+                var driverCell = ws.Cell(r, 1);
+                driverCell.Value = x.DriverColumn;
+                
+                if (state.TeamByCar.TryGetValue(x.CarIdx, out var teamId))
+                    driverCell.Style.Fill.BackgroundColor = ColorSchemes.TeamColor(teamId);
+
                 ws.Cell(r, 2).Value = x.Tyre;
                 ws.Cell(r, 3).Value = Helpers.MsToStr((int)Math.Round(x.AvgMs));
                 var col = ColorSchemes.GetTyreColor(x.Tyre);
@@ -70,6 +80,7 @@ namespace F12020TelemetryLogger.Excel
             ws.Cell(r, 6).Value = "Tyre";
             ws.Cell(r, 7).Value = "Avg Time";
             ws.Range(r, 5, r, 7).Style.Font.SetBold();
+            ws.Range(r, 5, r, 7).Style.Fill.BackgroundColor = XLColor.FromHtml("#E0E0E0");
             r++;
 
             var raceAvg = raceClean
@@ -78,7 +89,8 @@ namespace F12020TelemetryLogger.Excel
                     g.Key.DriverColumn, 
                     g.Key.Tyre, 
                     AvgMs = g.Average(x => x.LapTimeMs), 
-                    N = g.Count() 
+                    N = g.Count(),
+                    CarIdx = g.First().CarIdx
                 })
                 .OrderBy(x => x.DriverColumn, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(x => Helpers.TyreOrder(x.Tyre))
@@ -86,7 +98,12 @@ namespace F12020TelemetryLogger.Excel
 
             foreach (var x in raceAvg)
             {
-                ws.Cell(r, 5).Value = x.DriverColumn;
+                var driverCell = ws.Cell(r, 5);
+                driverCell.Value = x.DriverColumn;
+                
+                if (state.TeamByCar.TryGetValue(x.CarIdx, out var teamId))
+                    driverCell.Style.Fill.BackgroundColor = ColorSchemes.TeamColor(teamId);
+
                 ws.Cell(r, 6).Value = x.Tyre;
                 ws.Cell(r, 7).Value = Helpers.MsToStr((int)Math.Round(x.AvgMs));
                 var col = ColorSchemes.GetTyreColor(x.Tyre);
@@ -98,6 +115,7 @@ namespace F12020TelemetryLogger.Excel
 
             ws.Columns().AdjustToContents();
             ws.Rows().AdjustToContents();
+            ws.SheetView.Freeze(2, 0);
         }
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Net.Sockets;
 using System.Threading.Tasks;
 using F12020TelemetryLogger.Models;
 using F12020TelemetryLogger.Services;
@@ -16,7 +17,7 @@ namespace F12020TelemetryLogger.Menu
             Console.WriteLine("\n    [1] Manual Save (CSV + Excel)\n    [2] Auto-Save (ON/OFF)\n    [3] Open Folder\n    [4] View Buffer\n    [5] Manual Start New Weekend\n    [6] Debug Mode (ON/OFF)\n    [M] Show Menu Again\n    [0] Exit Program\n");
         }
 
-        public static async Task RunMenuLoop(AppState state, Func<bool> getRunning, Action<bool> setRunning, Func<bool, Task> saveCallback)
+        public static async Task RunMenuLoop(AppState state, Func<bool> getRunning, Action<bool> setRunning, Func<bool, Task> saveCallback, UdpClient? udp = null)
         {
             while (getRunning())
             {
@@ -76,6 +77,7 @@ namespace F12020TelemetryLogger.Menu
                     case ConsoleKey.NumPad0:
                         setRunning(false);
                         Log.Success("[✓] Exiting…");
+                        try { udp?.Close(); } catch { }
                         return;
                 }
             }
