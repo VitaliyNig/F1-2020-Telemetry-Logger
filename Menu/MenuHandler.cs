@@ -38,7 +38,7 @@ namespace F12020TelemetryLogger.Menu
                     case ConsoleKey.D1:
                     case ConsoleKey.NumPad1:
                         await saveCallback(true);
-                        Log.Success("[✓] Manual Saved");
+                        Log.Success("[✓] Manual Save Complete");
                         break;
 
                     case ConsoleKey.D2:

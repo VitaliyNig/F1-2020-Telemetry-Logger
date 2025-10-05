@@ -160,8 +160,6 @@ namespace F12020TelemetryLogger
                 _saving = true;
                 ScWindowService.CloseOpenWindows(ST);
                 await SaveService.SaveAllAsync(ST, makeExcel);
-                if (makeExcel)
-                    Log.Success("[✓] Manual Save Complete");
             }
             catch (Exception ex)
             {
@@ -210,7 +208,7 @@ namespace F12020TelemetryLogger
         private static void PrintBanner()
         {
             Console.BackgroundColor = ConsoleColor.DarkMagenta;
-            Console.WriteLine("    Telemetry Logger | F1 2020 | v7.1    ");
+            Console.WriteLine("    Telemetry Logger | F1 2020 | v7.2    ");
             Console.ResetColor();
         }
 
